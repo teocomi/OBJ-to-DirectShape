@@ -29,7 +29,11 @@ public sealed class AutomationContextTest : IDisposable
   [Test]
   public async Task TestFunctionRun()
   {
-    var inputs = new FunctionInputs { RevitCategory = "Walls" };
+    var inputs = new FunctionInputs
+    {
+      RevitCategory = "Walls",
+      TargetModelPrefix = "Converted"
+    };
 
     var automationRunData = await TestAutomateUtils.CreateTestRun(client);
     var automationContext = await AutomationRunner.RunFunction(

@@ -43,7 +43,7 @@ public static class AutomateFunction
             )
         ).name;
 
-        var prefix = "direct shaped";
+        var prefix = functionInputs.TargetModelPrefix;
 
         if (string.IsNullOrEmpty(sourceModelName))
         {
