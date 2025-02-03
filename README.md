@@ -1,6 +1,6 @@
 # SpeckleObjToDirectShape
 
-This repository contains a function that converts Speckle objects to Revit DirectShapes, compatible with Speckle Automate.
+This function converts Speckle objects to Revit DirectShapes, compatible with Speckle Automate. It receives a model version, traverses the objects, converts them to DirectShapes, and creates a new version in the target model.
 
 ## Quick Start
 
