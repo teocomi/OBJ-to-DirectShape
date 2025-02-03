@@ -166,7 +166,10 @@ public static class AutomateFunction
                 $"A {category} from OBJ",
                 revitCategory,
                 meshes.Cast<Base>().ToList()
-            );
+            )
+            {
+                ["categoryName"] = category
+            };
         }
 
         return null;
