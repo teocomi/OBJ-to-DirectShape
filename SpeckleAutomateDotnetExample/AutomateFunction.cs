@@ -1,3 +1,4 @@
+using Objects;
 using Objects.BuiltElements.Revit;
 using Speckle.Automate.Sdk;
 using Speckle.Core.Api;
@@ -13,6 +14,7 @@ public static class AutomateFunction
   )
   {
     Console.WriteLine("Starting execution");
+    _ = typeof(ObjectsKit).Assembly; // INFO: Force objects kit to initialize
 
     Console.WriteLine("Receiving version");
     var commitObject = await automationContext.ReceiveVersion();
