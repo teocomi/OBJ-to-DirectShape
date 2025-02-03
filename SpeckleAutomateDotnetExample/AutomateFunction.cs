@@ -45,3 +45,25 @@ public static class AutomateFunction
     automationContext.MarkRunSuccess($"Converted OBJ to {functionInputs.RevitCategory} DirectShape");
   }
 }
+
+    private static DirectShape? ConvertToDirectShape(Base obj, string category)
+    {
+        if (!Enum.TryParse<RevitCategory>(category, out var revitCategory))
+        {
+            throw new ArgumentException("Invalid Revit category", nameof(category));
+        }
+
+        var displayValue = obj?.TryGetDisplayValue();
+        if (displayValue is null)
+            return null;
+
+        var meshes = displayValue.OfType<Mesh>().ToList();
+        return meshes.Count == 0
+            ? null
+            : new DirectShape(
+                $"A {category} from OBJ",
+                revitCategory,
+                baseGeometries: meshes.Cast<Base>().ToList(),
+                null
+            );
+    }
