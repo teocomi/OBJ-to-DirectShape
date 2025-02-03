@@ -24,13 +24,13 @@ public static class AutomateFunction
         Console.WriteLine("Receiving version");
 
         // Receive the version of the model to be processed
-        var commitObject = await automationContext.ReceiveVersion();
-        Console.WriteLine("Received version: " + commitObject);
+        var versionObject = await automationContext.ReceiveVersion();
+        Console.WriteLine("Received version: " + versionObject);
 
-        // Traverse the commit object to find and convert relevant objects
+        // Traverse the version object to find and convert relevant objects
         var objects = DefaultTraversal
             .CreateTraversalFunc()
-            .Traverse(commitObject)
+            .Traverse(versionObject)
             .Select(tc => ConvertToDirectShape(tc.Current, functionInputs.RevitCategory))
             .Where(ds => ds != null)
             .ToList();
@@ -64,7 +64,7 @@ public static class AutomateFunction
         );
 
         // Create a new collection of converted objects
-        var commitCollection = new Collection
+        var versionCollection = new Collection
         {
             collectionType = "direct shaped model",
             name = "Pivoted Revit model",
@@ -73,7 +73,7 @@ public static class AutomateFunction
 
         // Create a new version in the project with the converted objects
         var newVersion = await automationContext.CreateNewVersionInProject(
-            rootObject: commitCollection,
+            rootObject: versionCollection,
             modelName: targetModelName,
             versionMessage: $"{objects.Count} {functionInputs.RevitCategory} DirectShapes"
         );
