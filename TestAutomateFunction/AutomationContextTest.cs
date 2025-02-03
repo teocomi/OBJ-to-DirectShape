@@ -1,3 +1,4 @@
+using Objects.BuiltElements.Revit;
 using Speckle.Automate.Sdk;
 using Speckle.Automate.Sdk.Test;
 using Speckle.Core.Api;
@@ -32,7 +33,7 @@ public sealed class AutomationContextTest : IDisposable
   {
     var inputs = new FunctionInputs
     {
-      RevitCategory = "Walls",
+      RevitCategory = "Banana",
       TargetModelPrefix = "Converted"
     };
 

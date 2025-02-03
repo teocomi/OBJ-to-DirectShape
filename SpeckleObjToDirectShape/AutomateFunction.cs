@@ -27,11 +27,14 @@ public static class AutomateFunction
         var versionObject = await automationContext.ReceiveVersion();
         Console.WriteLine("Received version: " + versionObject);
 
+        // Validate the Revit category provided by the user or fallback to Generic Model
+        var revitCategory = ValidateRevitCategory(functionInputs.RevitCategory);
+
         // Traverse the version object to find and convert relevant objects
         var objects = DefaultTraversal
             .CreateTraversalFunc()
             .Traverse(versionObject)
-            .Select(tc => ConvertToDirectShape(tc.Current, functionInputs.RevitCategory))
+            .Select(tc => ConvertToDirectShape(tc.Current, revitCategory))
             .Where(ds => ds != null)
             .ToList();
 
@@ -66,8 +69,8 @@ public static class AutomateFunction
         // Create a new collection of converted objects
         var versionCollection = new Collection
         {
-            collectionType = "direct shaped model",
-            name = "Pivoted Revit model",
+            collectionType = "Directly shaped model",
+            name = "Converted Revit model",
             elements = objects.Cast<Base>().ToList()
         };
 
@@ -75,7 +78,7 @@ public static class AutomateFunction
         var newVersion = await automationContext.CreateNewVersionInProject(
             rootObject: versionCollection,
             modelName: targetModelName,
-            versionMessage: $"{objects.Count} {functionInputs.RevitCategory} DirectShapes"
+            versionMessage: $"{objects.Count} {revitCategory} DirectShapes"
         );
 
         // Using ProjectModelsFilter to search for the target model by name - sadly all inputs are mandatory.
@@ -103,7 +106,7 @@ public static class AutomateFunction
         }
 
         automationContext.MarkRunSuccess(
-            $"Converted OBJ to {functionInputs.RevitCategory} DirectShape"
+            $"Converted OBJ to {revitCategory} DirectShape"
         );
     }
 
@@ -143,5 +146,12 @@ public static class AutomateFunction
         var cleanPrefix = prefix.Trim('/');
         var parts = sourceModelName.Split('/', StringSplitOptions.RemoveEmptyEntries);
         return $"{cleanPrefix}/{string.Join("/", parts)}";
+    }
+
+    private static string ValidateRevitCategory(string category)
+    {
+        if (Enum.IsDefined(typeof(RevitCategory), category)) return category;
+        Console.WriteLine($"Invalid Revit category {category} provided. Falling back to 'Generic Object'.");
+        return RevitCategory.GenericModel.ToString();
     }
 }
