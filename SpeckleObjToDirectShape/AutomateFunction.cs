@@ -168,7 +168,10 @@ public static class AutomateFunction
                 meshes.Cast<Base>().ToList()
             )
             {
-                ["categoryName"] = category
+                // Adding the category name here makes the category human readable in the viewer
+                ["categoryName"] = category,
+                // Adding the meshes here also makes the DirectShape the selectable object in the viewer
+                ["@displayValue"] = meshes, 
             };
         }
 
