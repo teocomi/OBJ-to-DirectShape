@@ -19,10 +19,10 @@ public static class AutomateFunction
         Console.WriteLine("Starting execution");
 
         // Ensure necessary types are loaded
-        InitialiseObjectsKit();
+        _ = typeof(ObjectsKit).Assembly;
 
         // Receive the version object
-        var versionObject = await ReceiveVersion(automationContext);
+        var versionObject = await automationContext.ReceiveVersion();
 
         // Validate the Revit category
         var revitCategory = ValidateRevitCategory(functionInputs.RevitCategory);
@@ -31,7 +31,7 @@ public static class AutomateFunction
         var objects = ConvertVersionObjects(versionObject, revitCategory);
         if (!objects.Any())
         {
-            FailExecution(automationContext, "No valid objects found for conversion.");
+            automationContext.MarkRunFailed("No valid objects found for conversion.");
             return;
         }
 
@@ -46,7 +46,13 @@ public static class AutomateFunction
         );
 
         // Create a new collection and version
-        var versionCollection = CreateVersionCollection(objects);
+        var versionCollection = new Collection
+        {
+            collectionType = "Directly shaped model",
+            name = "Converted Revit model",
+            elements = objects
+        };
+
         var newVersion = await CreateNewVersion(
             automationContext,
             versionCollection,
@@ -61,20 +67,6 @@ public static class AutomateFunction
         automationContext.MarkRunSuccess($"Converted OBJ to {revitCategory} DirectShape");
     }
 
-    private static void InitialiseObjectsKit()
-    {
-        _ = typeof(ObjectsKit).Assembly;
-        Console.WriteLine("Objects kit initialised");
-    }
-
-    private static async Task<Base> ReceiveVersion(AutomationContext automationContext)
-    {
-        Console.WriteLine("Receiving version");
-        var versionObject = await automationContext.ReceiveVersion();
-        Console.WriteLine($"[INFO] Received version: {versionObject}");
-        return versionObject;
-    }
-
     private static List<Base> ConvertVersionObjects(
         Base versionObject,
         string revitCategory
@@ -87,12 +79,6 @@ public static class AutomateFunction
             .Where(ds => ds != null)
             .Cast<Base>()
             .ToList();
-    }
-
-    private static void FailExecution(AutomationContext context, string message)
-    {
-        context.MarkRunFailed(message);
-        Console.WriteLine($"[ERROR] {message}");
     }
 
     private static async Task<string> GetSourceModelName(AutomationContext context)
@@ -113,16 +99,6 @@ public static class AutomateFunction
                 nameof(name)
             );
         }
-    }
-
-    private static Collection CreateVersionCollection(List<Base> objects)
-    {
-        return new Collection
-        {
-            collectionType = "Directly shaped model",
-            name = "Converted Revit model",
-            elements = objects
-        };
     }
 
     private static async Task<string> CreateNewVersion(
@@ -152,7 +128,6 @@ public static class AutomateFunction
         {
             var modelVersionIdentifier = $"{targetModelId}@{newVersion}";
             context.SetContextView([modelVersionIdentifier], false);
-            Console.WriteLine($"Context view set with: {modelVersionIdentifier}");
         }
     }
 
@@ -181,26 +156,20 @@ public static class AutomateFunction
     {
         if (!Enum.TryParse(category, out RevitCategory revitCategory))
         {
-            Console.WriteLine(
-                $"[WARN] Invalid Revit category '{category}' provided. Skipping object conversion."
-            );
             return null;
         }
 
         var meshes = obj?.TryGetDisplayValue()?.OfType<Mesh>().ToList();
-        if (meshes == null || !meshes.Any())
+        if (meshes != null && meshes.Any())
         {
-            Console.WriteLine(
-                $"[INFO] No display meshes found for object '{obj?.id}'. Skipping conversion."
+            return new DirectShape(
+                $"A {category} from OBJ",
+                revitCategory,
+                meshes.Cast<Base>().ToList()
             );
-            return null;
         }
 
-        return new DirectShape(
-            $"A {category} from OBJ",
-            revitCategory,
-            meshes.Cast<Base>().ToList()
-        );
+        return null;
     }
 
     public static string GenerateTargetModelName(string sourceModelName, string prefix)
@@ -238,7 +207,7 @@ public static class AutomateFunction
             .Trim();
 
         var parts = safeSourceModelName
-            .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries)
             .Select(part => part.Replace(" ", "_").Trim())
             .ToArray();
 
@@ -256,14 +225,8 @@ public static class AutomateFunction
 
     public static string ValidateRevitCategory(string category)
     {
-        if (Enum.TryParse(typeof(RevitCategory), category, out var validCategory))
-        {
-            return validCategory.ToString()!;
-        }
-
-        Console.WriteLine(
-            $"[WARN] Invalid Revit category '{category}' provided. Defaulting to 'Generic Model'."
-        );
-        return RevitCategory.GenericModel.ToString();
+        return Enum.TryParse(typeof(RevitCategory), category, out var validCategory)
+            ? validCategory.ToString()!
+            : RevitCategory.GenericModel.ToString();
     }
 }
