@@ -4,3 +4,4 @@
 return await AutomationRunner
   .Main<FunctionInputs>(args, AutomateFunction.Run)
   .ConfigureAwait(false);
+
