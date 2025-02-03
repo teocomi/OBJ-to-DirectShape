@@ -21,21 +21,21 @@
   </a>
 </p>
 
-# Example Dotnet function for Speckle Automate
+# SpeckleObjToDirectShape
 
-This repository contains an example function that is compatible with Speckle Automate, the platform to register and deploy automations that interact with your Speckle data.
+This repository contains a function that converts Speckle objects to Revit DirectShapes, compatible with Speckle Automate.
 
 ## Quick Start
 
-1. Download or clone this repository, or better still generate it via the New Function wizard in Speckle Automate.
+1. Download or clone this repository.
 2. Modify the `AutomateFunction.cs` to include your specific logic.
 3. Publish your changes (see Publishing Functions).
 
 ## Getting started
 
-This is essentially a template function, designed to serve as a starting point for creating your own function. The function targets dotnet 7.0 and uses the Speckle.Automate.SDK NuGet package, as well as the Objects Kit.
+This function targets dotnet 7.0 and uses the Speckle.Automate.SDK NuGet package, as well as the Objects Kit.
 
-At its core every Speckle Automate function is a CLI application with a specific, standardized set of available commands and arguments ([see below](#anatomy-of-a-function)). Each automate function is then built into a Docker image and published onto Speckle Automate.
+At its core, every Speckle Automate function is a CLI application with a specific, standardized set of available commands and arguments ([see below](#anatomy-of-a-function)). Each automate function is then built into a Docker image and published onto Speckle Automate.
 
 The Speckle Automate function publishing process is already taken care of ([see Publishing functions](#publishing-a-function)) so you can concentrate on writing the code that matters to you.
 
@@ -43,12 +43,12 @@ The Speckle Automate function publishing process is already taken care of ([see 
 
 Here are some key files and folders you'll find in this repository:
 
-- **Main Solution File (`SpeckleAutomateDotnetExample.sln`)**: This is the project's master file that references the function's project. See note at the end of this readme about renaming this.
-- **Project Sub-folder (`SpeckleAutomateDotnetExample/`)**: This is where your function's code lives. Expand or replace the code in this sub-folder to make the function your own.
-- **Docker related files (`.dockerignore`, `Dockerfile`)** -> Files like `.dockerignore` and `Dockerfile` are essential for deploying your function as a Docker container. Modify these only if you're familiar with Docker and it is absolutely necessary for your function's operation.
-- **Github Action (`.github/workflows/main.yml`)** -> This action automates the function's release process, making it easier to publish updates.
-- **Codespaces configuration (`.devcontainer/`)** -> This configuration ensures that GitHub Codespaces has the settings it needs to run this project effectively.
-- **IDE Configuration Files (`.vscode/`, `.csharpierrc.json`)** -> Configuration files for Visual Studio Code are included, allowing you to tailor the editor settings to your preferences.
+- **Main Solution File (`SpeckleObjToDirectShape.sln`)**: This is the project's master file that references the function's project.
+- **Project Sub-folder (`SpeckleObjToDirectShape/`)**: This is where your function's code lives. Expand or replace the code in this sub-folder to make the function your own.
+- **Docker related files (`.dockerignore`, `Dockerfile`)**: Files like `.dockerignore` and `Dockerfile` are essential for deploying your function as a Docker container. Modify these only if you're familiar with Docker and it is absolutely necessary for your function's operation.
+- **Github Action (`.github/workflows/main.yml`)**: This action automates the function's release process, making it easier to publish updates.
+- **Codespaces configuration (`.devcontainer/`)**: This configuration ensures that GitHub Codespaces has the settings it needs to run this project effectively.
+- **IDE Configuration Files (`.vscode/`, `.csharpierrc.json`)**: Configuration files for Visual Studio Code are included, allowing you to tailor the editor settings to your preferences.
 
 ## Anatomy of a function
 
@@ -64,8 +64,8 @@ These arguments are automatically provided by the automate platform every time a
 
 In this file, you'll find a call to `AutomationRunner.Main<TInput>`, which serves as your function's SDK entry point. This method handles argument parsing and accepts:
 
-- `args` -> the arguments provided by Speckle Automate, and
-- `Func<AutomationContext, TInput>` -> Your custom function that gets executed when the automation is triggered.
+- `args`: the arguments provided by Speckle Automate, and
+- `Func<AutomationContext, TInput>`: Your custom function that gets executed when the automation is triggered.
 
 > [!NOTE]
 > If your function requires no inputs, there is also `AutomationRunner.Main` (non-generic) which takes in a `Func<AutomationContext>` instead.
@@ -73,7 +73,7 @@ In this file, you'll find a call to `AutomationRunner.Main<TInput>`, which serve
 This sets up a CLI application with two commands:
 
 1. the main function command, that implements the Speckle Automate function's anatomy
-2. `generate-schema` -> a helper command that can generate the JSON Schema from the function author provided `FunctionInputs` class. This command is called whenever a new version of the function is published to automate.
+2. `generate-schema`: a helper command that can generate the JSON Schema from the function author provided `FunctionInputs` class. This command is called whenever a new version of the function is published to automate.
 
 ### Function Implementation (`AutomateFunction.cs`)
 
@@ -81,10 +81,10 @@ The `AutomateFunction.cs` contains the actual function implementation. This is t
 
 You'll modify the `Run` function to execute your specific logic here. The function receives an AutomationContext and, optionally, a struct for your desired input data:
 
-- `AutomationContext` -> The context of your automation, which contains all the parsed information provided by the automate service as explained [above](#anatomy-of-a-function)
+- `AutomationContext`: The context of your automation, which contains all the parsed information provided by the automate service as explained [above](#anatomy-of-a-function)
 - **Optional**: a `struct` representing your desired input data (see [Function Inputs](#user-inputs-functioninputscs))
 
-The template already contains an example implementation that will count how many objects of a particular type can be found on a version.
+The implementation converts Speckle objects to Revit DirectShapes.
 
 ### User Inputs (`FunctionInputs.cs`)
 
@@ -118,7 +118,7 @@ Once this process has successfully finished, your function should be available a
 
 Before you dive too deeply into development, give your project a name that better suits its purpose. If you decide to rename your project or solution, remember also to update a few key areas to maintain functionality:
 
-- **Dockerfile**: On line 4, you'll find a reference to the `SpeckleAutomateDotnetExample/` folder. Update this to match your new project name.
-- **GitHub Actions Workflow**: In `.github/workflows/main.yml`, the working directory for the GitHub Action is declared as `SpeckleAutomateDotnetFolder/`. Update this to point to your newly named project folder.
+- **Dockerfile**: On line 4, you'll find a reference to the `SpeckleObjToDirectShape/` folder. Update this to match your new project name.
+- **GitHub Actions Workflow**: In `.github/workflows/main.yml`, the working directory for the GitHub Action is declared as `SpeckleObjToDirectShape/`. Update this to point to your newly named project folder.
 
 Keeping these references up-to-date ensures that GitHub Actions and Docker can correctly find and operate your project.
