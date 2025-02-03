@@ -18,140 +18,252 @@ public static class AutomateFunction
     {
         Console.WriteLine("Starting execution");
 
-        // Force objects kit to initialize to ensure all necessary types are loaded
-        _ = typeof(ObjectsKit).Assembly; // INFO: Force objects kit to initialize
+        // Ensure necessary types are loaded
+        InitialiseObjectsKit();
 
-        Console.WriteLine("Receiving version");
+        // Receive the version object
+        var versionObject = await ReceiveVersion(automationContext);
 
-        // Receive the version of the model to be processed
-        var versionObject = await automationContext.ReceiveVersion();
-        Console.WriteLine("Received version: " + versionObject);
-
-        // Validate the Revit category provided by the user or fallback to Generic Model
+        // Validate the Revit category
         var revitCategory = ValidateRevitCategory(functionInputs.RevitCategory);
 
-        // Traverse the version object to find and convert relevant objects
-        var objects = DefaultTraversal
-            .CreateTraversalFunc()
-            .Traverse(versionObject)
-            .Select(tc => ConvertToDirectShape(tc.Current, revitCategory))
-            .Where(ds => ds != null)
-            .ToList();
-
+        // Traverse and convert objects
+        var objects = ConvertVersionObjects(versionObject, revitCategory);
         if (!objects.Any())
         {
-            automationContext.MarkRunFailed("No valid objects found for conversion.");
+            FailExecution(automationContext, "No valid objects found for conversion.");
             return;
         }
 
-        // Get the source model name from the Speckle server
-        var sourceModelName = (
-            await automationContext.SpeckleClient.Model.Get(
-                automationContext.AutomationRunData.Triggers[0].Payload.ModelId,
-                automationContext.AutomationRunData.ProjectId
-            )
-        ).name;
+        // Get the source model name
+        var sourceModelName = await GetSourceModelName(automationContext);
+        ValidateSourceModelName(sourceModelName);
 
-        if (string.IsNullOrEmpty(sourceModelName))
-        {
-            throw new ArgumentException(
-                "Source model name cannot be null or empty",
-                nameof(sourceModelName)
-            );
-        }
-
-        // Generate a new target model name based on the source model name and prefix
+        // Generate target model name
         var targetModelName = GenerateTargetModelName(
             sourceModelName,
             functionInputs.TargetModelPrefix
         );
 
-        // Create a new collection of converted objects
-        var versionCollection = new Collection
-        {
-            collectionType = "Directly shaped model",
-            name = "Converted Revit model",
-            elements = objects.Cast<Base>().ToList()
-        };
-
-        // Create a new version in the project with the converted objects
-        var newVersion = await automationContext.CreateNewVersionInProject(
-            rootObject: versionCollection,
-            modelName: targetModelName,
-            versionMessage: $"{objects.Count} {revitCategory} DirectShapes"
+        // Create a new collection and version
+        var versionCollection = CreateVersionCollection(objects);
+        var newVersion = await CreateNewVersion(
+            automationContext,
+            versionCollection,
+            targetModelName,
+            revitCategory,
+            objects.Count
         );
 
-        // Using ProjectModelsFilter to search for the target model by name - sadly all inputs are mandatory.
-        var targetModelId = (
-            await automationContext.SpeckleClient.Project.GetWithModels(
-                projectId: automationContext.AutomationRunData.ProjectId,
-                modelsLimit: 1,
-                modelsFilter: new ProjectModelsFilter(
-                    search: targetModelName,
-                    contributors: null,
-                    sourceApps: null,
-                    ids: null,
-                    excludeIds: null,
-                    onlyWithVersions: false
-                )
-            )
-        ).models?.items.FirstOrDefault()?.id ?? string.Empty;
+        // Link source and target models
+        await LinkSourceAndTargetModels(automationContext, targetModelName, newVersion);
 
-        // all of that is only necessary to link the automate results of the source model to link across to the converted model
-        if (!string.IsNullOrEmpty(targetModelId))
-        {
-            var modelVersionIdentifier = $"{targetModelId}@{newVersion}";
-            automationContext.SetContextView([modelVersionIdentifier], false);
-            Console.WriteLine($"Context view set with: {modelVersionIdentifier}");
-        }
+        automationContext.MarkRunSuccess($"Converted OBJ to {revitCategory} DirectShape");
+    }
 
-        automationContext.MarkRunSuccess(
-            $"Converted OBJ to {revitCategory} DirectShape"
+    private static void InitialiseObjectsKit()
+    {
+        _ = typeof(ObjectsKit).Assembly;
+        Console.WriteLine("Objects kit initialised");
+    }
+
+    private static async Task<Base> ReceiveVersion(AutomationContext automationContext)
+    {
+        Console.WriteLine("Receiving version");
+        var versionObject = await automationContext.ReceiveVersion();
+        Console.WriteLine($"[INFO] Received version: {versionObject}");
+        return versionObject;
+    }
+
+    private static List<Base> ConvertVersionObjects(
+        Base versionObject,
+        string revitCategory
+    )
+    {
+        return DefaultTraversal
+            .CreateTraversalFunc()
+            .Traverse(versionObject)
+            .Select(tc => ConvertToDirectShape(tc.Current, revitCategory))
+            .Where(ds => ds != null)
+            .Cast<Base>()
+            .ToList();
+    }
+
+    private static void FailExecution(AutomationContext context, string message)
+    {
+        context.MarkRunFailed(message);
+        Console.WriteLine($"[ERROR] {message}");
+    }
+
+    private static async Task<string> GetSourceModelName(AutomationContext context)
+    {
+        var modelInfo = await context.SpeckleClient.Model.Get(
+            context.AutomationRunData.Triggers[0].Payload.ModelId,
+            context.AutomationRunData.ProjectId
         );
+        return modelInfo.name;
     }
 
-    private static DirectShape? ConvertToDirectShape(Base obj, string category)
+    private static void ValidateSourceModelName(string name)
     {
-        if (!Enum.TryParse(category, out RevitCategory revitCategory))
-        {
-            throw new ArgumentException("Invalid Revit category", nameof(category));
-        }
-
-        var meshes = obj?.TryGetDisplayValue()?.OfType<Mesh>().ToList();
-        return meshes?.Any() == true
-            ? new DirectShape(
-                $"A {category} from OBJ",
-                revitCategory,
-                meshes.Cast<Base>().ToList(),
-                null
-            )
-            : null;
-    }
-
-    private static string GenerateTargetModelName(string sourceModelName, string prefix)
-    {
-        if (string.IsNullOrEmpty(sourceModelName))
+        if (string.IsNullOrEmpty(name))
         {
             throw new ArgumentException(
                 "Source model name cannot be null or empty",
+                nameof(name)
+            );
+        }
+    }
+
+    private static Collection CreateVersionCollection(List<Base> objects)
+    {
+        return new Collection
+        {
+            collectionType = "Directly shaped model",
+            name = "Converted Revit model",
+            elements = objects
+        };
+    }
+
+    private static async Task<string> CreateNewVersion(
+        AutomationContext context,
+        Collection versionCollection,
+        string modelName,
+        string revitCategory,
+        int objectCount
+    )
+    {
+        return await context.CreateNewVersionInProject(
+            rootObject: versionCollection,
+            modelName: modelName,
+            versionMessage: $"{objectCount} {revitCategory} DirectShapes"
+        );
+    }
+
+    private static async Task LinkSourceAndTargetModels(
+        AutomationContext context,
+        string targetModelName,
+        string newVersion
+    )
+    {
+        var targetModelId = await FindTargetModelId(context, targetModelName);
+
+        if (!string.IsNullOrEmpty(targetModelId))
+        {
+            var modelVersionIdentifier = $"{targetModelId}@{newVersion}";
+            context.SetContextView([modelVersionIdentifier], false);
+            Console.WriteLine($"Context view set with: {modelVersionIdentifier}");
+        }
+    }
+
+    private static async Task<string> FindTargetModelId(
+        AutomationContext context,
+        string targetModelName
+    )
+    {
+        var project = await context.SpeckleClient.Project.GetWithModels(
+            projectId: context.AutomationRunData.ProjectId,
+            modelsLimit: 1,
+            modelsFilter: new ProjectModelsFilter(
+                search: targetModelName,
+                contributors: null,
+                sourceApps: null,
+                ids: null,
+                excludeIds: null,
+                onlyWithVersions: false
+            )
+        );
+
+        return project.models?.items.FirstOrDefault()?.id ?? string.Empty;
+    }
+
+    public static DirectShape? ConvertToDirectShape(Base? obj, string category)
+    {
+        if (!Enum.TryParse(category, out RevitCategory revitCategory))
+        {
+            Console.WriteLine(
+                $"[WARN] Invalid Revit category '{category}' provided. Skipping object conversion."
+            );
+            return null;
+        }
+
+        var meshes = obj?.TryGetDisplayValue()?.OfType<Mesh>().ToList();
+        if (meshes == null || !meshes.Any())
+        {
+            Console.WriteLine(
+                $"[INFO] No display meshes found for object '{obj?.id}'. Skipping conversion."
+            );
+            return null;
+        }
+
+        return new DirectShape(
+            $"A {category} from OBJ",
+            revitCategory,
+            meshes.Cast<Base>().ToList()
+        );
+    }
+
+    public static string GenerateTargetModelName(string sourceModelName, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(sourceModelName))
+        {
+            throw new ArgumentException(
+                "Source model name cannot be null, empty, or whitespace.",
                 nameof(sourceModelName)
             );
         }
 
-        if (string.IsNullOrEmpty(prefix))
+        if (string.IsNullOrWhiteSpace(prefix))
         {
-            throw new ArgumentException("Prefix cannot be null or empty", nameof(prefix));
+            throw new ArgumentException(
+                "Prefix cannot be null, empty, or whitespace.",
+                nameof(prefix)
+            );
         }
 
-        var cleanPrefix = prefix.Trim('/');
-        var parts = sourceModelName.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return $"{cleanPrefix}/{string.Join("/", parts)}";
+        var cleanPrefix = string.Concat(
+                prefix.Select(c => char.IsLetterOrDigit(c) || c == '_' || c == '/'
+                    ? c
+                    : '_')
+            )
+            .Trim('/');
+
+        var safeSourceModelName = string.Concat(
+                sourceModelName.Select(
+                    c => char.IsLetterOrDigit(c) || c == '/' || c == '_'
+                        ? c
+                        : '_'
+                )
+            )
+            .Trim();
+
+        var parts = safeSourceModelName
+            .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Replace(" ", "_").Trim())
+            .ToArray();
+
+        var targetModelName = $"{cleanPrefix}/{string.Join("/", parts)}";
+
+        if (targetModelName.Length > 255)
+        {
+            throw new ArgumentException(
+                "Generated target model name exceeds the maximum allowed length of 255 characters."
+            );
+        }
+
+        return targetModelName;
     }
 
-    private static string ValidateRevitCategory(string category)
+    public static string ValidateRevitCategory(string category)
     {
-        if (Enum.IsDefined(typeof(RevitCategory), category)) return category;
-        Console.WriteLine($"Invalid Revit category {category} provided. Falling back to 'Generic Object'.");
+        if (Enum.TryParse(typeof(RevitCategory), category, out var validCategory))
+        {
+            return validCategory.ToString()!;
+        }
+
+        Console.WriteLine(
+            $"[WARN] Invalid Revit category '{category}' provided. Defaulting to 'Generic Model'."
+        );
         return RevitCategory.GenericModel.ToString();
     }
 }
