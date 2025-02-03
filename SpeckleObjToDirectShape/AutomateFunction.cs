@@ -1,13 +1,13 @@
-using System.Reflection;
 using Objects;
 using Objects.BuiltElements.Revit;
 using Objects.Geometry;
 using Speckle.Automate.Sdk;
-using Speckle.Core.Api;
 using Speckle.Core.Api.GraphQL.Inputs;
 using Speckle.Core.Models;
 using Speckle.Core.Models.Extensions;
 using Speckle.Core.Models.GraphTraversal;
+
+namespace SpeckleObjToDirectShape;
 
 public static class AutomateFunction
 {
@@ -17,12 +17,17 @@ public static class AutomateFunction
     )
     {
         Console.WriteLine("Starting execution");
+
+        // Force objects kit to initialize to ensure all necessary types are loaded
         _ = typeof(ObjectsKit).Assembly; // INFO: Force objects kit to initialize
 
         Console.WriteLine("Receiving version");
+
+        // Receive the version of the model to be processed
         var commitObject = await automationContext.ReceiveVersion();
         Console.WriteLine("Received version: " + commitObject);
 
+        // Traverse the commit object to find and convert relevant objects
         var objects = DefaultTraversal
             .CreateTraversalFunc()
             .Traverse(commitObject)
@@ -30,20 +35,19 @@ public static class AutomateFunction
             .Where(ds => ds != null)
             .ToList();
 
-        if (objects.Count == 0)
+        if (!objects.Any())
         {
             automationContext.MarkRunFailed("No valid objects found for conversion.");
             return;
         }
 
+        // Get the source model name from the Speckle server
         var sourceModelName = (
             await automationContext.SpeckleClient.Model.Get(
                 automationContext.AutomationRunData.Triggers[0].Payload.ModelId,
                 automationContext.AutomationRunData.ProjectId
             )
         ).name;
-
-        var prefix = functionInputs.TargetModelPrefix;
 
         if (string.IsNullOrEmpty(sourceModelName))
         {
@@ -53,44 +57,48 @@ public static class AutomateFunction
             );
         }
 
-        var targetModelName = GenerateTargetModelName(sourceModelName, prefix);
+        // Generate a new target model name based on the source model name and prefix
+        var targetModelName = GenerateTargetModelName(
+            sourceModelName,
+            functionInputs.TargetModelPrefix
+        );
 
-        var commitCollection = new Collection()
+        // Create a new collection of converted objects
+        var commitCollection = new Collection
         {
             collectionType = "direct shaped model",
             name = "Pivoted Revit model",
             elements = objects.Cast<Base>().ToList()
         };
 
+        // Create a new version in the project with the converted objects
         var newVersion = await automationContext.CreateNewVersionInProject(
             rootObject: commitCollection,
             modelName: targetModelName,
             versionMessage: $"{objects.Count} {functionInputs.RevitCategory} DirectShapes"
         );
 
-        var targetModelId =
-            (
-                await automationContext.SpeckleClient.Project.GetWithModels(
-                    projectId: automationContext.AutomationRunData.ProjectId,
-                    modelsLimit: 1, // Efficiency: Only request what we need
-                    modelsFilter: new ProjectModelsFilter(
-                        search: targetModelName,
-                        contributors: null,
-                        sourceApps: null,
-                        ids: null,
-                        excludeIds: null,
-                        onlyWithVersions: false
-                    )
+        // Using ProjectModelsFilter to search for the target model by name - sadly all inputs are mandatory.
+        var targetModelId = (
+            await automationContext.SpeckleClient.Project.GetWithModels(
+                projectId: automationContext.AutomationRunData.ProjectId,
+                modelsLimit: 1,
+                modelsFilter: new ProjectModelsFilter(
+                    search: targetModelName,
+                    contributors: null,
+                    sourceApps: null,
+                    ids: null,
+                    excludeIds: null,
+                    onlyWithVersions: false
                 )
-            ).models?.items
-            .FirstOrDefault()
-            ?.id ?? string.Empty;
+            )
+        ).models?.items.FirstOrDefault()?.id ?? string.Empty;
 
-        if (targetModelId != string.Empty)
+        // all of that is only necessary to link the automate results of the source model to link across to the converted model
+        if (!string.IsNullOrEmpty(targetModelId))
         {
             var modelVersionIdentifier = $"{targetModelId}@{newVersion}";
             automationContext.SetContextView([modelVersionIdentifier], false);
-
             Console.WriteLine($"Context view set with: {modelVersionIdentifier}");
         }
 
@@ -101,24 +109,20 @@ public static class AutomateFunction
 
     private static DirectShape? ConvertToDirectShape(Base obj, string category)
     {
-        if (!Enum.TryParse<RevitCategory>(category, out var revitCategory))
+        if (!Enum.TryParse(category, out RevitCategory revitCategory))
         {
             throw new ArgumentException("Invalid Revit category", nameof(category));
         }
 
-        var displayValue = obj?.TryGetDisplayValue();
-        if (displayValue is null)
-            return null;
-
-        var meshes = displayValue.OfType<Mesh>().ToList();
-        return meshes.Count == 0
-            ? null
-            : new DirectShape(
+        var meshes = obj?.TryGetDisplayValue()?.OfType<Mesh>().ToList();
+        return meshes?.Any() == true
+            ? new DirectShape(
                 $"A {category} from OBJ",
                 revitCategory,
-                baseGeometries: meshes.Cast<Base>().ToList(),
+                meshes.Cast<Base>().ToList(),
                 null
-            );
+            )
+            : null;
     }
 
     private static string GenerateTargetModelName(string sourceModelName, string prefix)
@@ -136,34 +140,8 @@ public static class AutomateFunction
             throw new ArgumentException("Prefix cannot be null or empty", nameof(prefix));
         }
 
-        // Clean the input data
-        prefix = prefix.TrimStart('/');
-
-        if (string.IsNullOrEmpty(prefix))
-        {
-            throw new ArgumentException(
-                "Prefix cannot be just a forward slash",
-                nameof(prefix)
-            );
-        }
-
-        // Process the path components
         var cleanPrefix = prefix.Trim('/');
         var parts = sourceModelName.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-        // Construct the final path
         return $"{cleanPrefix}/{string.Join("/", parts)}";
-    }
-}
-
-internal static class Processor
-{
-    public static Base? ProcessObject(Base baseObject)
-    {
-        return baseObject switch
-        {
-            Collection => null,
-            _ => baseObject
-        };
     }
 }
