@@ -20,7 +20,7 @@ jobs:
         run: dotnet restore
       - name: Extract functionInputSchema
         id: extract_schema
-        working-directory: "SpeckleAutomateDotnetExample"
+        working-directory: "SpeckleObjToDirectShape"
         run: |
           dotnet build
           dotnet run generate-schema ${HOME}/functionSchema.json
@@ -28,7 +28,7 @@ jobs:
       - name: Speckle Automate Function - Build and Publish
         uses: specklesystems/speckle-automate-github-composite-action@0.8.1
         with:
-          speckle_function_command: "dotnet SpeckleAutomateDotnetExample.dll"
+          speckle_function_command: "dotnet SpeckleObjToDirectShape.dll"
           speckle_automate_url: ${{ env.SPECKLE_AUTOMATE_URL || vars.SPECKLE_AUTOMATE_URL || 'https://automate.speckle.dev' }}
           speckle_token: ${{ secrets.SPECKLE_FUNCTION_TOKEN }}
           speckle_function_id: ${{ secrets.SPECKLE_FUNCTION_ID }}

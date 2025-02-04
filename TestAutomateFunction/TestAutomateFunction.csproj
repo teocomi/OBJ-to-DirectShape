@@ -17,7 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\SpeckleAutomateDotnetExample\SpeckleAutomateDotnetExample.csproj" />
+        <ProjectReference Include="..\SpeckleObjToDirectShape\SpeckleObjToDirectShape.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

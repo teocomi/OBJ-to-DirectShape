@@ -14,5 +14,6 @@ public struct FunctionInputs
   /// </summary>
   [Required]
   public string RevitCategory;
-  
+
+  public string TargetModelPrefix;
 }

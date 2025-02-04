@@ -3,9 +3,23 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpeckleAutomateDotnetExample", "SpeckleAutomateDotnetExample/SpeckleAutomateDotnetExample.csproj", "{E1DE5809-1111-4817-9B7D-7ADCA087FA1C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpeckleObjToDirectShape", "SpeckleObjToDirectShape\SpeckleObjToDirectShape.csproj", "{E1DE5809-1111-4817-9B7D-7ADCA087FA1C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestAutomateFunction", "TestAutomateFunction\TestAutomateFunction.csproj", "{8107A920-A5E2-459C-9756-04B91FB63F3F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Automate Context", "Automate Context", "{B36A194A-A5E6-4AA6-8129-3A1F0292529A}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{FDDBC7A2-6FDA-4FD7-A290-A1AB4735BB50}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{C44664C0-38E6-46C5-B135-6D918E59294E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docker", "Docker", "{16AC4595-F7C7-457B-BF64-5EA35E0AE931}"
+	ProjectSection(SolutionItems) = preProject
+		Dockerfile = Dockerfile
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,5 +41,10 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6487EAE6-FBD5-4884-BCA1-1E8C082EC370}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FDDBC7A2-6FDA-4FD7-A290-A1AB4735BB50} = {B36A194A-A5E6-4AA6-8129-3A1F0292529A}
+		{C44664C0-38E6-46C5-B135-6D918E59294E} = {FDDBC7A2-6FDA-4FD7-A290-A1AB4735BB50}
+		{16AC4595-F7C7-457B-BF64-5EA35E0AE931} = {B36A194A-A5E6-4AA6-8129-3A1F0292529A}
 	EndGlobalSection
 EndGlobal
