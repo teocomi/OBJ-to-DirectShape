@@ -127,7 +127,7 @@ public static class AutomateFunction
         if (!string.IsNullOrEmpty(targetModelId))
         {
             var modelVersionIdentifier = $"{targetModelId}@{newVersion}";
-            context.SetContextView([modelVersionIdentifier], false);
+            context.SetContextView(new List<string>{modelVersionIdentifier}, false);
         }
     }
 
@@ -213,7 +213,7 @@ public static class AutomateFunction
             .Trim();
 
         var parts = safeSourceModelName
-            .Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries)
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
             .Select(part => part.Replace(" ", "_").Trim())
             .ToArray();
 
